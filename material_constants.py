@@ -1,25 +1,26 @@
+from pandas import read_csv
+
 """
 Some physics constants.
 """
 
+# Диэлектрическая проницаемость в вакууме :)
 e0 = 8.85e-12
 
 """
-Material constants as classes for easy acces and use.
+Material class for loading and easy use of different material constants.
 """
-# TODO Create better architecture for materials!!!
 
-class MYZNiobate:
-    v = 3488
-    dvv = 0.024
-    einf_e0 = 46
-    TCD = 94
-    einf = einf_e0 * e0
+# Путь к файлу с константами для материалов
+PATH_TO_MATERIALS = 'materials/material_constants.csv'
 
 
-class M128YXNiobate:
-    v = 3979
-    dvv = 0.027
-    einf_e0 = 56
-    TCD = 75
-    einf = einf_e0 * e0
+class Material:
+    def __init__(self, name: str = 'YZNiobate'):
+        material_data = read_csv(PATH_TO_MATERIALS, index_col='name').loc[name, :]
+        self.v = material_data[0]
+        self.dvv = material_data[1]
+        self.einf_e0 = material_data[2]
+        self.TCD = material_data[3]
+        self.einf = self.einf_e0 * e0
+        self.vs = self.v * (1 - self.dvv)

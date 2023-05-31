@@ -1,3 +1,7 @@
+"""
+Реализация класса для различных видов аподизации.
+"""
+
 import numpy as np
 import scipy
 
@@ -10,27 +14,25 @@ class Apodization:
         self.v = v
         self.W = W"""
 
-    # TODO: Что-то сделать с тем, что функция "none" берет лишние аргументы (это необходимо, чтобы применение аподизации было универсальным)
+    @staticmethod
+    def none(**kwargs):
+        Pm = np.array([x % 2 for x in range(kwargs["Np"])])
+
+        return Pm, kwargs["W"]
 
     @staticmethod
-    def none(p, Np, v, W, bandwidth):
-        Pm = np.array([x % 2 for x in range(Np)])
+    def sinc(**kwargs):
+        lam = 2 * kwargs["p"]
+        f_0 = kwargs["v"] / (2 * kwargs["p"])
 
-        return Pm, W
+        dt = 0.5 * lam / kwargs["v"]  # TODO Почему 0.5?
+        ZM = np.arange(0, kwargs["Np"]) * kwargs["v"] * dt
 
-    @staticmethod
-    def sinc(p, Np, v, W, bandwidth):
-        lam = 2 * p
-        f_0 = v / (2 * p)
+        x0 = kwargs["p"] * kwargs["Np"] / 2
+        XM = 2 * np.pi * (kwargs["bandwidth"] * f_0) * (ZM - x0) / kwargs["v"]  # TODO Почему 2?
 
-        dt = 0.5 * lam / v  # TODO Почему 0.5?
-        ZM = np.arange(0, Np) * v * dt
+        Wm = np.array([kwargs["W"] * np.sinc(x / np.pi) for x in XM])
 
-        x0 = p * Np / 2
-        XM = 2 * np.pi * (bandwidth * f_0) * (ZM - x0) / v  # TODO Почему 2?
-
-        Wm = np.array([W * np.sinc(x / np.pi) for x in XM])
-
-        Pm = np.array([x % 2 for x in range(Np)]) * (Wm / W) * scipy.signal.windows.kaiser(Np, 4)  # TODO Почему 4?
+        Pm = np.array([x % 2 for x in range(kwargs["Np"])]) * (Wm / kwargs["W"]) * scipy.signal.windows.kaiser(kwargs["Np"], 4)  # TODO Почему 4?
 
         return Pm, Wm

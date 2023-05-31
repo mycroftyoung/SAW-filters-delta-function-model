@@ -1,8 +1,10 @@
+import os
+
 import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 from material_constants import e0
-from material_constants import M128YXNiobate as niobate
+from material_constants import Material
 from apodizations import Apodization
 
 """
@@ -10,6 +12,7 @@ Interdigital Transducer (IDT) = Встречно-Штыревой преобра
 Pitch - Расстояние между электродами (м)
 Np - количество электродов в ВШП
 Апертура - Длина электрода. В случае аподизированного ВШП задаётся функцией.
+Sample rate - частота дискретизации
 
 """
 
@@ -23,7 +26,7 @@ class IDT:
                  Np: int = 100,
                  apodization: callable = Apodization.none,
                  aperture: int = 100,
-                 material=niobate,
+                 material=Material(),
                  freq_sampling: float = 0.1e6,
                  band: str = 'wide',
                  bandwidth: float = 0.05
@@ -52,12 +55,15 @@ class IDT:
         self.omega = 2 * np.pi * self.freq
         self.Ew_const = 1.694j * self.material.dvv
         self.W = aperture * self.lam
+        self.bandwidth = bandwidth
+        self.band = band
 
-        self.Kw = self.omega / self.material.v  # Вектор волновых чисел
+        self.Kw = self.omega / self.material.v  # Вектор волновых чисел (для свободной поверхности)
+        self.Kws = self.omega / self.material.vs  # Для металлизированной поверхности
         self.X = np.array([x * self.p for x in range(self.Np)])  # Координаты точечных излучателей
 
         # Применение аподизации
-        self.Pm, self.Wm = self.apodization(self.p, self.Np, self.material.v, self.W, bandwidth)
+        self.Pm, self.Wm = self.apodization(p=self.p, Np=self.Np, v=self.material.v, W=self.W, bandwidth=bandwidth)
 
         # Расчёт множителя элемента (element factor)
         self.Ew = np.array([self.element_factor(k) for k in self.Kw])
@@ -92,7 +98,8 @@ class IDT:
         m = np.floor(beta * self.p / (2 * np.pi))
         s = (beta * self.p / (2 * np.pi)) - m
 
-        rho_f = self.material.einf * (2 * np.sin(np.pi * s)) * self.legendre(np.cos(delta), m) / self.legendre(-np.cos(delta), -s)
+        rho_f = self.material.einf * (2 * np.sin(np.pi * s)) * self.legendre(np.cos(delta), m) / self.legendre(
+            -np.cos(delta), -s)
 
         return rho_f
 
@@ -109,12 +116,14 @@ class Filter:
         self.f_0 = idt_1.f_0
         self.freq = idt_1.freq
         self.omega = idt_1.omega
+        self.band = idt_1.band
 
         # Ёмкостная связь
         Cio = 0.01e-12
         YCio = -1j * self.omega * Cio
 
         # Y21 и Y12 считаем по 2 (принимающему) преобразователю
+        # TODO: Добавить затухание!!
         self.Y21 = idt_1.H * idt_2.H * np.exp(-1j * idt_2.Kw * d) + YCio
         self.Y12 = self.Y21
 
@@ -138,22 +147,26 @@ class Filter:
 
         return S11, S12, S21, S22
 
+    def plot(self, true_freq: bool = False, param: str = "S21"): # TODO: добавить Yпараметры, фазовую хар-ку с наложением на Y\S
+        fig, ax = plt.subplots()
 
+        ax.plot((a.freq/1e6 if true_freq else a.freq / a.f_0), 20 * np.log10(abs(self.s_params[2])))
+        if self.band == "narrow" and not true_freq:
+            ax.set_ylim(-90, 0)
+            ax.set_xlim(0.85, 1.15)
+
+        ax.set_title('АЧХ S21-параметров фильтра')
+        if true_freq:
+            ax.set_xlabel('Частота, MHz')
+        ax.set_ylabel('Магнитуда, дБ')
+        ax.grid()
+        fig.show()
 
 
 if __name__ == '__main__':
-    a = IDT(Np=100, apodization=Apodization.sinc)
-    b = IDT(Np=20)
+    a = IDT(Np=100, apodization=Apodization.sinc, band='wide')
+    b = IDT(Np=10, band='wide')
 
     c = Filter(a, b, d=10e-3)
+    c.plot(true_freq=True)
 
-    S = c.s_params
-
-    fig, ax = plt.subplots()
-
-    ax.plot(a.freq / a.f_0, 20 * np.log10(abs(S[2])))
-    # ax.set_ylim(-135, 0)
-    # ax.set_xlim(0.9, 1.1)
-
-    ax.grid()
-    fig.show()
