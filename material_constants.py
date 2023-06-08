@@ -16,6 +16,11 @@ PATH_TO_MATERIALS = 'materials/material_constants.csv'
 
 
 class Material:
+    """
+    The Material class is designed to store and retrieve material constants for a given material. It reads the
+    material constants from a CSV file and initializes the class fields with the corresponding values. The class
+    provides a convenient way to access the material constants for use in other parts of the code.
+    """
     def __init__(self, name: str = 'YZNiobate'):
         material_data = read_csv(PATH_TO_MATERIALS, index_col='name').loc[name, :]
         self.v = material_data[0]

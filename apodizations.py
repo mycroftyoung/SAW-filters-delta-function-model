@@ -33,6 +33,7 @@ class Apodization:
 
         Wm = np.array([kwargs["W"] * np.sinc(x / np.pi) for x in XM])
 
-        Pm = np.array([x % 2 for x in range(kwargs["Np"])]) * (Wm / kwargs["W"]) * scipy.signal.windows.kaiser(kwargs["Np"], 4)  # TODO Почему 4?
+        Pm = np.array([x % 2 for x in range(kwargs["Np"])]) * (Wm / kwargs["W"]) * scipy.signal.windows.kaiser(
+            kwargs["Np"], 4)  # TODO Почему 4?
 
         return Pm, Wm

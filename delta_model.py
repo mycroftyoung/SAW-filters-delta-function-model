@@ -75,7 +75,7 @@ class IDT:
         # Отклик преобразователя (transducer response)
         self.H = - 1j * self.Ew * self.A * np.sqrt(self.omega * self.W * self.material.einf / self.material.dvv)
 
-    def legendre(self, x, v, M: int = 100):
+    def legendre(self, x: float, v: int, M: int = 100) -> float:
         """
         This function computes the Legendre polynomial P(x)v
         :param x: argument
@@ -92,26 +92,75 @@ class IDT:
         P = np.sum(N)
         return P
 
-    def rho_f(self, beta):
+    def rho_f(self, beta) -> float:
         delta = np.pi * self.a / self.p
 
         m = np.floor(beta * self.p / (2 * np.pi))
         s = (beta * self.p / (2 * np.pi)) - m
 
-        rho_f = self.material.einf * (2 * np.sin(np.pi * s)) * self.legendre(np.cos(delta), m) / self.legendre(
-            -np.cos(delta), -s)
+        P1 = self.legendre(np.cos(delta), m)
+        P2 = self.legendre(-np.cos(delta), -s)
+
+        rho_f = self.material.einf * (2 * np.sin(np.pi * s)) * P1 / P2
 
         return rho_f
 
-    def element_factor(self, beta):
+    def element_factor(self, beta) -> np.ndarray:
         ew = 1j * self.material.dvv * self.rho_f(beta) / self.material.einf
         return ew
 
 
 class Filter:
+    """
+    A class representing a filter composed of two interdigital transducers (IDTs).
+
+    Main functionalities:
+    The Filter class describes a filter consisting of two Interdigital Transducers (IDTs) with a given distance between them. The class calculates the S-parameters of the filter and provides a method to plot the frequency response of the filter.
+
+    Methods:
+    - __init__(self, idt_1: IDT, idt_2: IDT, d: float = 10e-3): initializes the Filter object with two IDTs and the distance between them. Calculates the Y-parameters of the filter.
+    - s_params(self): calculates and returns the S-parameters of the filter.
+    - plot(self, true_freq: bool = False, param: str = "S21"): plots the frequency response of the filter. The parameter 'true_freq' determines whether the x-axis is in MHz or normalized to the center frequency of the IDTs. The parameter 'param' determines which S-parameter to plot.
+
+    Fields:
+    - Y11, Y12, Y21, Y22: the Y-parameters of the filter.
+    - material: the material of the IDTs.
+    - f_0: the center frequency of the IDTs.
+    - freq: the frequency range of the IDTs.
+    - omega: the angular frequency range of the IDTs.
+    - band: the band of the IDTs.
+    """
+
+    @staticmethod
+    def _check_idts(idt_1, idt_2) -> None:
+        """
+        Checks if the two IDTs are compatible for use in a filter.
+
+        :param idt_1: The first IDT.
+        :param idt_2: The second IDT.
+        :raises ValueError: If the IDTs have different bands, sample rates, or materials.
+        """
+
+        if idt_2.band != idt_1.band:
+            raise ValueError("IDTs have different band")
+        if not np.isclose(idt_2.freq, idt_1.freq).all():
+            raise ValueError('IDTs have different band or sample rate')
+        if idt_2.material != idt_1.material:
+            raise ValueError("IDTs have different materials")
+
+        return None
 
     def __init__(self, idt_1: IDT, idt_2: IDT,
-                 d: float = 10e-3, ):
+                 d: float = 10e-3, ) -> None:
+        """
+        Initializes a Filter object.
+
+        :param idt_1: The first IDT.
+        :param idt_2: The second IDT.
+        :param d: The distance between the two IDTs.
+        """
+        self.__class__._check_idts(idt_1, idt_2)
+
         self.material = idt_1.material
         self.f_0 = idt_1.f_0
         self.freq = idt_1.freq
@@ -135,7 +184,13 @@ class Filter:
         self.Y22 = self.Y11
 
     @property
-    def s_params(self):
+    def s_params(self) -> tuple[float, float, float, float]:
+        """
+        Calculates the scattering parameters of the filter.
+
+        :return: A tuple containing the S11, S12, S21, and S22 parameters.
+        """
+
         Z0 = 50
         Y11, Y12, Y21, Y22 = self.Y11, self.Y12, self.Y21, self.Y22
 
@@ -147,18 +202,28 @@ class Filter:
 
         return S11, S12, S21, S22
 
-    def plot(self, true_freq: bool = False, param: str = "S21"): # TODO: добавить Yпараметры, фазовую хар-ку с наложением на Y\S
+    def plot(self, true_freq: bool = False, param: str = "S21") -> None: # TODO: добавить Yпараметры, фазовую хар-ку с наложением на Y\S
+        """
+        Plots the frequency response of the filter.
+
+        :param true_freq: If True, plots the frequency in MHz. Otherwise, plots the frequency in units of the fundamental frequency.
+        :param param: The scattering parameter to plot (S11, S12, S21, or S22).
+        """
+
         fig, ax = plt.subplots()
 
-        ax.plot((a.freq/1e6 if true_freq else a.freq / a.f_0), 20 * np.log10(abs(self.s_params[2])))
+        s_param_dict = {"S11": 0, "S12": 1, "S21": 2, "S22": 3}
+        s_param_index = s_param_dict[param]
+        ax.plot((a.freq / 1e6 if true_freq else a.freq / a.f_0), 20 * np.log10(abs(self.s_params[s_param_index])))
+
         if self.band == "narrow" and not true_freq:
             ax.set_ylim(-90, 0)
             ax.set_xlim(0.85, 1.15)
 
-        ax.set_title('АЧХ S21-параметров фильтра')
+        ax.set_title(f'АЧХ {param} -- параметров фильтра')
         if true_freq:
             ax.set_xlabel('Частота, MHz')
-        ax.set_ylabel('Магнитуда, дБ')
+        ax.set_ylabel(f'|{param}|, дБ')
         ax.grid()
         fig.show()
 
@@ -167,6 +232,6 @@ if __name__ == '__main__':
     a = IDT(Np=100, apodization=Apodization.sinc, band='wide')
     b = IDT(Np=10, band='wide')
 
-    c = Filter(a, b, d=10e-3)
+    c = Filter(a, b, d=100e-3)
     c.plot(true_freq=True)
 
