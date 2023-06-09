@@ -2,11 +2,11 @@ import numpy as np
 from delta_model import Filter, IDT
 
 """
-Parameters optimization developing is in progress!
+IN DEVELOPMENT
 
 """
 
-def loss(filter: Filter):
+"""def loss(filter: Filter):
     X = filter.s_params[2]
     X_0 = x_0(filter.f_0, filter.freq, filter.bandwidth)
     W = weights(filter.f_0, filter.freq, filter.bandwidth)
@@ -48,3 +48,4 @@ def accuracy_3db(X, X_0_metric):
     acc = count / X.shape[0]
 
     return acc
+"""

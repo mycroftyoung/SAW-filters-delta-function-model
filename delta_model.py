@@ -75,7 +75,8 @@ class IDT:
         # Отклик преобразователя (transducer response)
         self.H = - 1j * self.Ew * self.A * np.sqrt(self.omega * self.W * self.material.einf / self.material.dvv)
 
-    def legendre(self, x: float, v: int, M: int = 100) -> float:
+    @staticmethod
+    def _legendre(x: float, v: int, M: int = 100) -> float:
         """
         This function computes the Legendre polynomial P(x)v
         :param x: argument
@@ -92,21 +93,21 @@ class IDT:
         P = np.sum(N)
         return P
 
-    def rho_f(self, beta) -> float:
+    def _rho_f(self, beta) -> float:
         delta = np.pi * self.a / self.p
 
         m = np.floor(beta * self.p / (2 * np.pi))
         s = (beta * self.p / (2 * np.pi)) - m
 
-        P1 = self.legendre(np.cos(delta), m)
-        P2 = self.legendre(-np.cos(delta), -s)
+        P1 = self.__class__._legendre(np.cos(delta), m)
+        P2 = self.__class__._legendre(-np.cos(delta), -s)
 
         rho_f = self.material.einf * (2 * np.sin(np.pi * s)) * P1 / P2
 
         return rho_f
 
     def element_factor(self, beta) -> np.ndarray:
-        ew = 1j * self.material.dvv * self.rho_f(beta) / self.material.einf
+        ew = 1j * self.material.dvv * self._rho_f(beta) / self.material.einf
         return ew
 
 
