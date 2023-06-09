@@ -26,6 +26,7 @@ pip install -r requirements.txt
 Для тестового запуска необходимо импортировать классы IDT, Apodization и Filter из файла delta_model.py. Затем необходимо создать два экземпляра класса IDT, и на их основе создать фильтр:
 ```
 from delta_model import IDT, Filter
+from apodizations import Apodization
 
 a = IDT(Np=100, apodization=Apodization.sinc, band='wide')
 b = IDT(Np=10, band='wide')
